@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Tracker Dashboard</title>
+  <link rel="stylesheet" href="/styles/common.css">
+  <link rel="stylesheet" href="/styles/dashboard.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">Expense Tracker</div>
+      <div class="user-menu">
+        <a href="/auth/logout" class="logout-btn">Logout</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="container">
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Statistics Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="total-expenses">₹0</div>
+          <div class="stat-label">Total This Month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="expense-count">0</div>
+          <div class="stat-label">Transactions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avg-expense">₹0</div>
+          <div class="stat-label">Average Expense</div>
+        </div>
+      </div>
+
+      <!-- Add Expense Card -->
+      <div class="card">
+        <h2 class="card-title">➕ Add New Expense</h2>
+        <form id="expense-form" class="expense-form">
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" id="date" class="form-input" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount (₹)</label>
+            <input type="number" id="amount" class="form-input" placeholder="Enter amount" required step="0.01" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select id="category" class="form-select" required>
+              <option value="" disabled selected>Select category</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="opacity: 0;">Action</label>
+            <button type="submit" class="btn btn-primary">Add Expense</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Expenses Table Card -->
+      <div class="card">
+        <h2 class="card-title">💸 Recent Expenses</h2>
+        
+        <!-- View Controls -->
+        <div class="view-controls">
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Year:</label>
+            <select id="view-year" class="form-select" style="width: auto;">
+              <option value="2024">2024</option>
+              <option value="2023">2023</option>
+              <option value="2025">2025</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Month:</label>
+            <select id="view-month" class="form-select" style="width: auto;">
+              <option value="January">January</option>
+              <option value="February">February</option>
+              <option value="March">March</option>
+              <option value="April">April</option>
+              <option value="May">May</option>
+              <option value="June">June</option>
+              <option value="July">July</option>
+              <option value="August">August</option>
+              <option value="September">September</option>
+              <option value="October">October</option>
+              <option value="November">November</option>
+              <option value="December">December</option>
+            </select>
+          </div>
+          <button onclick="fetchExpenses()" class="btn btn-primary">Load Expenses</button>
+        </div>
+
+        <!-- Expenses Table -->
+        <table class="expense-table">
+          <thead>
+            <tr>
+              <th>📅 Date</th>
+              <th>💰 Amount</th>
+              <th>🏷️ Category</th>
+            </tr>
+          </thead>
+          <tbody id="expense-table-body">
+            <tr>
+              <td colspan="3" class="loading">Loading expenses...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Category Management Card -->
+      <div class="card">
+        <h2 class="card-title">🏷️ Manage Categories</h2>
+        <p style="margin-bottom: 1.5rem; color: #666; font-size: 0.9rem;">
+          Add, edit, or delete your expense categories. All categories can be customized to fit your needs.
+        </p>
+        
+        <!-- Add Category Form -->
+        <div class="category-form">
+          <input type="text" id="new-category" class="form-input" placeholder="Enter new category name" required />
+          <button type="button" onclick="addCategoryFromInput()" class="btn btn-success">Add</button>
+        </div>
+        
+        <!-- Categories List -->
+        <div id="custom-categories">
+          <div class="loading">Loading categories...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE_URL = "http://localhost:3000"; // Replace with your backend URL
+
+    // Load categories into the dropdown
+    async function loadCategories() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/categories`, {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const categories = await response.json();
+        const categorySelect = document.getElementById("category");
+        const customCategoriesDiv = document.getElementById("custom-categories");
+
+        // Clear existing options (except the first placeholder)
+        categorySelect.innerHTML = '<option value="" disabled selected>Select category</option>';
+        customCategoriesDiv.innerHTML = '';
+
+        // Add categories to dropdown and display all categories with edit/delete options
+        categories.forEach((category) => {
+          // Add to dropdown
+          const option = document.createElement("option");
+          option.value = category.categoryName;
+          option.textContent = category.categoryName;
+          categorySelect.appendChild(option);
+
+          // Display all categories with edit and delete options
+          const categoryItem = document.createElement("div");
+          categoryItem.className = "category-item";
+          categoryItem.innerHTML = `
+            <span class="category-name">${category.categoryName}</span>
+            <div class="category-actions">
+              <button onclick="editCategory(${category.id}, '${category.categoryName.replace(/'/g, "\\'")}')" class="btn btn-warning">Edit</button>
+              <button onclick="deleteCategory(${category.id})" class="btn btn-danger">Delete</button>
+            </div>
+          `;
+          customCategoriesDiv.appendChild(categoryItem);
+        });
+
+        if (categories.length === 0) {
+          customCategoriesDiv.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏷️</div><p>No categories found. Add your first category!</p></div>';
+        }
+      } catch (error) {
+        console.error("Error loading categories:", error);
+        document.getElementById("custom-categories").innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><p>Error loading categories</p></div>';
+      }
+    }
+
+    // Calculate and update statistics
+    function updateStatistics(expenses) {
+      const totalElement = document.getElementById("total-expenses");
+      const countElement = document.getElementById("expense-count");
+      const avgElement = document.getElementById("avg-expense");
+
+      if (!expenses || expenses.length === 0) {
+        totalElement.textContent = "₹0";
+        countElement.textContent = "0";
+        avgElement.textContent = "₹0";
+        return;
+      }
+
+      const total = expenses.reduce((sum, expense) => sum + parseFloat(expense[1] || 0), 0);
+      const count = expenses.length;
+      const average = count > 0 ? total / count : 0;
+
+      totalElement.textContent = `₹${total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+      countElement.textContent = count.toString();
+      avgElement.textContent = `₹${average.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    }
+
+    // Add a new category
+    async function addCategory(event) {
+      event.preventDefault();
+      await addCategoryFromInput();
+    }
+
+    // Delete a category
+    async function deleteCategory(categoryId) {
+      if (!confirm("Are you sure you want to delete this category?")) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/categories/${categoryId}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          showNotification("Category deleted successfully!", "success");
+          loadCategories(); // Refresh the categories
+        } else {
+          const errorText = await response.text();
+          showNotification(`Failed to delete category: ${errorText}`, "error");
+        }
+      } catch (error) {
+        console.error("Error deleting category:", error);
+        showNotification("Error deleting category. Please try again.", "error");
+      }
+    }
+
+    // Edit a category
+    async function editCategory(categoryId, currentName) {
+      const newName = prompt("Enter new category name:", currentName);
+      
+      if (!newName || newName.trim() === "" || newName.trim() === currentName) {
+        return; // User cancelled or no changes
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/categories/${categoryId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ categoryName: newName.trim() }),
+        });
+
+        if (response.ok) {
+          showNotification("Category updated successfully!", "success");
+          loadCategories(); // Refresh the categories
+        } else {
+          const errorText = await response.text();
+          showNotification(`Failed to update category: ${errorText}`, "error");
+        }
+      } catch (error) {
+        console.error("Error updating category:", error);
+        showNotification("Error updating category. Please try again.", "error");
+      }
+    }
+
+    // Fetch and display expenses
+    async function fetchExpenses() {
+      try {
+        const year = document.getElementById("view-year").value;
+        const month = document.getElementById("view-month").value;
+        
+        const tableBody = document.getElementById("expense-table-body");
+        tableBody.innerHTML = '<tr><td colspan="3" class="loading">Loading expenses...</td></tr>';
+        
+        const response = await fetch(`${API_BASE_URL}/expenses?year=${year}&month=${month}`, {
+          credentials: "include", // Include cookies for session
+        });
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            // Handle specific 404 errors with detailed messages
+            try {
+              const errorData = await response.json();
+              let message = "No expenses found for this month";
+              let icon = "📭";
+              
+              if (errorData.error === "no_spreadsheet") {
+                message = errorData.message;
+                icon = "📊";
+              } else if (errorData.error === "no_sheet") {
+                message = errorData.message;
+                icon = "📝";
+              }
+              
+              tableBody.innerHTML = `<tr><td colspan="3" class="empty-state"><div class="empty-state-icon">${icon}</div><p>${message}</p></td></tr>`;
+              updateStatistics([]);
+              return;
+            } catch (parseError) {
+              // Fallback if JSON parsing fails
+              tableBody.innerHTML = '<tr><td colspan="3" class="empty-state"><div class="empty-state-icon">📭</div><p>No expenses found for this month</p></td></tr>';
+              updateStatistics([]);
+              return;
+            }
+          }
+          
+          if (response.status === 400) {
+            tableBody.innerHTML = '<tr><td colspan="3" class="empty-state"><div class="empty-state-icon">📭</div><p>No expenses found for this month</p></td></tr>';
+            updateStatistics([]);
+            return;
+          }
+          
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        tableBody.innerHTML = ""; // Clear existing rows
+
+        if (!data || data.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="3" class="empty-state"><div class="empty-state-icon">📭</div><p>No expenses found for this month</p></td></tr>';
+          updateStatistics([]);
+          return;
+        }
+
+        // Populate table with expenses
+        data.forEach((expense) => {
+          const row = document.createElement("tr");
+          const amount = parseFloat(expense[1] || 0);
+          row.innerHTML = `
+            <td>${new Date(expense[0]).toLocaleDateString('en-IN')}</td>
+            <td>₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+            <td><span style="background: #2563eb; color: white; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.85rem;">${expense[2]}</span></td>
+          `;
+          tableBody.appendChild(row);
+        });
+
+        // Update statistics
+        updateStatistics(data);
+      } catch (error) {
+        console.error("Error fetching expenses:", error);
+        const tableBody = document.getElementById("expense-table-body");
+        tableBody.innerHTML = '<tr><td colspan="3" class="empty-state"><div class="empty-state-icon">❌</div><p>Unable to load expenses. Please try again.</p></td></tr>';
+        updateStatistics([]);
+      }
+    }
+
+    // Add a new expense
+    async function addExpense(event) {
+      event.preventDefault();
+
+      const date = document.getElementById("date").value;
+      const amount = document.getElementById("amount").value;
+      const category = document.getElementById("category").value;
+
+      if (!date) {
+        showNotification("Please select a date", "error");
+        return;
+      }
+
+      if (!amount || parseFloat(amount) <= 0) {
+        showNotification("Please enter a valid amount", "error");
+        return;
+      }
+
+      if (!category) {
+        showNotification("Please select a category", "error");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/expenses`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Include cookies for session
+          body: JSON.stringify({ date, amount: parseFloat(amount), category }),
+        });
+
+        if (response.ok) {
+          document.getElementById("expense-form").reset();
+          // Set today's date as default again
+          document.getElementById("date").value = new Date().toISOString().split('T')[0];
+          showNotification("Expense added successfully!", "success");
+          fetchExpenses(); // Refresh the table
+        } else {
+          const errorText = await response.text();
+          showNotification(`Failed to add expense: ${errorText}`, "error");
+        }
+      } catch (error) {
+        console.error("Error adding expense:", error);
+        showNotification("Error adding expense. Please try again.", "error");
+      }
+    }
+
+    // Add category from input (separate from form submission)
+    async function addCategoryFromInput() {
+      const categoryName = document.getElementById("new-category").value.trim();
+
+      if (!categoryName) {
+        showNotification("Please enter a category name", "error");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/categories`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ categoryName }),
+        });
+
+        if (response.ok) {
+          document.getElementById("new-category").value = "";
+          showNotification("Category added successfully!", "success");
+          loadCategories(); // Refresh the categories
+        } else {
+          const errorText = await response.text();
+          showNotification(`Failed to add category: ${errorText}`, "error");
+        }
+      } catch (error) {
+        console.error("Error adding category:", error);
+        showNotification("Error adding category. Please try again.", "error");
+      }
+    }
+
+    // Show notification
+    function showNotification(message, type = "info") {
+      // Remove existing notifications
+      const existingNotifications = document.querySelectorAll('.notification');
+      existingNotifications.forEach(n => n.remove());
+
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? 'linear-gradient(135deg, #56ab2f, #a8e6cf)' : 
+                     type === 'error' ? 'linear-gradient(135deg, #ff6b6b, #ee5a52)' : 
+                     'linear-gradient(135deg, #667eea, #764ba2)'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        font-weight: 500;
+        animation: slideIn 0.3s ease;
+      `;
+      notification.textContent = message;
+
+      // Add animation styles
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+
+      document.body.appendChild(notification);
+
+      // Remove notification after 4 seconds
+      setTimeout(() => {
+        notification.remove();
+      }, 4000);
+    }
+
+    // Attach event listeners
+    document.getElementById("expense-form").addEventListener("submit", addExpense);
+    
+    // Handle Enter key in category input
+    document.getElementById("new-category").addEventListener("keypress", function(e) {
+      if (e.key === "Enter") {
+        addCategoryFromInput();
+      }
+    });
+
+    // Initialize page
+    window.onload = function() {
+      // Set current year and month as default
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.toLocaleString('default', { month: 'long' });
+      
+      document.getElementById("view-year").value = currentYear;
+      document.getElementById("view-month").value = currentMonth;
+      
+      // Set today's date as default for new expenses
+      document.getElementById("date").value = now.toISOString().split('T')[0];
+      
+      // Load categories and fetch expenses for current month
+      loadCategories();
+      fetchExpenses();
+      
+      // Show welcome notification
+      setTimeout(() => {
+        showNotification("Welcome to your Expense Tracker! 🎉", "success");
+      }, 500);
+    };
+  </script>
+</body>
+</html>

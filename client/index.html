@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Tracker</title>
+  <link rel="stylesheet" href="/styles/common.css">
+  <link rel="stylesheet" href="/styles/landing.css">
+</head>
+<body>
+  <div class="container">
+    <div class="logo">💰</div>
+    <h1>Expense Tracker</h1>
+    <p>Track your expenses easily and efficiently with our modern, intuitive interface.</p>
+    
+    <a href="/auth/login" class="login-btn">
+      <span class="google-icon">G</span>
+      Continue with Google
+    </a>
+    
+    <div class="features">
+      <div class="feature">
+        <span class="feature-icon">📊</span>
+        <span>Real-time Analytics</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">☁️</span>
+        <span>Cloud Sync</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🏷️</span>
+        <span>Custom Categories</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🔒</span>
+        <span>Secure & Private</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check for flash messages in URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const message = urlParams.get('message');
+    
+    if (message) {
+      let messageText = '';
+      let messageType = 'error';
+      
+      switch(message) {
+        case 'session_expired':
+          messageText = 'Your session has expired. Please log in again.';
+          break;
+        case 'invalid_session':
+          messageText = 'Invalid session detected. Please log in again.';
+          break;
+        case 'server_error':
+          messageText = 'An error occurred. Please try logging in again.';
+          break;
+        case 'logout_success':
+          messageText = 'You have been logged out successfully.';
+          messageType = 'success';
+          break;
+        default:
+          messageText = 'Please log in to continue.';
+      }
+      
+      // Show flash message
+      showFlashMessage(messageText, messageType);
+      
+      // Clean up URL by removing the message parameter
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    // Flash message function
+    function showFlashMessage(message, type = "info") {
+      const flashMessage = document.createElement('div');
+      flashMessage.className = `flash-message flash-${type}`;
+      flashMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${type === 'success' ? 'linear-gradient(135deg, #56ab2f, #a8e6cf)' : 
+                     type === 'error' ? 'linear-gradient(135deg, #ff6b6b, #ee5a52)' : 
+                     'linear-gradient(135deg, #667eea, #764ba2)'};
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        font-weight: 500;
+        animation: slideDown 0.3s ease;
+        max-width: 90%;
+        text-align: center;
+      `;
+      flashMessage.textContent = message;
+
+      // Add animation styles
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideDown {
+          from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+          to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+
+      document.body.appendChild(flashMessage);
+
+      // Remove flash message after 5 seconds
+      setTimeout(() => {
+        flashMessage.remove();
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
