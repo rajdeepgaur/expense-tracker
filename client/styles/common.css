@@ -1,3 +1,20 @@
+/* CSS Custom Properties (Variables) */
+:root {
+  --primary-color: #266663;
+  --primary-hover: #1e5053;
+  --primary-light: #2d7a75;
+  --error-color: #e11d48;
+  --error-hover: #be123c;
+  --success-color: #10b981;
+  --background-light: #f9fafb;
+  --border-color: #e5e7eb;
+  --text-primary: #333;
+  --text-secondary: #6b7280;
+  --white: #ffffff;
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --shadow-medium: rgba(0, 0, 0, 0.2);
+}
+
 /* Flash message and notification styles */
 @keyframes slideDown {
   from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
@@ -27,15 +44,15 @@
 }
 
 .flash-success {
-  background: #059669;
+  background: var(--primary-color);
 }
 
 .flash-error {
-  background: #dc2626;
+  background: var(--error-color);
 }
 
 .flash-info {
-  background: #2563eb;
+  background: var(--primary-color);
 }
 
 /* Notification styles (used in dashboard.html) */
@@ -53,13 +70,13 @@
 }
 
 .notification-success {
-  background: #059669;
+  background: var(--primary-color);
 }
 
 .notification-error {
-  background: #dc2626;
+  background: var(--error-color);
 }
 
 .notification-info {
-  background: #2563eb;
+  background: var(--primary-color);
 }

@@ -7,6 +7,7 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
 # Environment variables
 .env
@@ -33,3 +34,6 @@ coverage/
 
 # Google credentials (if applicable)
 credentials.json
+
+# Database files
+*.sqlite

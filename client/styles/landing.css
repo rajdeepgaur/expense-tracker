@@ -7,22 +7,22 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #ffffff;
+  background: var(--white);
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Landing page container */
 .container {
   text-align: center;
-  background: #ffffff;
+  background: var(--white);
   padding: 3rem 2rem;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 20px var(--shadow-light);
+  border: 1px solid var(--border-color);
   max-width: 500px;
   width: 90%;
   animation: fadeInUp 0.8s ease;
@@ -84,20 +84,20 @@ p {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 2rem;
-  background: #2563eb;
+  background: #266663;
   color: white;
   text-decoration: none;
   border-radius: 8px;
   font-size: 1.1rem;
   font-weight: 600;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 2px 8px rgba(38, 102, 99, 0.2);
 }
 
 .login-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-  background: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(38, 102, 99, 0.3);
+  background: #1e5053;
 }
 
 .login-btn:active {

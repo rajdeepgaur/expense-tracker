@@ -2,38 +2,9 @@ const express = require("express");
 const { google } = require("googleapis");
 const User = require("../models/user");
 const UserSpreadsheet = require("../models/userSpreadsheet");
+const { ensureValidAccessToken } = require("../utils/oauth");
+const APP_CONFIG = require("../utils/constants");
 const router = express.Router();
-
-// Helper function to ensure a valid access token (same as in expenses.js)
-async function ensureValidAccessToken(user) {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
-
-  oauth2Client.setCredentials({
-    access_token: user.accessToken,
-    refresh_token: user.refreshToken,
-  });
-
-  try {
-    await oauth2Client.getAccessToken();
-    return oauth2Client;
-  } catch (error) {
-    console.log("Access token expired. Refreshing token...");
-    const { credentials } = await oauth2Client.refreshAccessToken();
-    user.accessToken = credentials.access_token;
-    await user.save();
-
-    oauth2Client.setCredentials({
-      access_token: credentials.access_token,
-      refresh_token: user.refreshToken,
-    });
-
-    return oauth2Client;
-  }
-}
 
 // Ensure the Categories sheet exists in the current year's spreadsheet
 async function ensureCategoriesSheetExists(user, oauth2Client) {
@@ -62,7 +33,7 @@ async function ensureCategoriesSheetExists(user, oauth2Client) {
     });
   }
 
-  // Check if Categories sheet exists
+  // Ensure Categories sheet exists (for both new and existing spreadsheets)
   const sheets = google.sheets({ version: "v4", auth: oauth2Client });
   
   try {
@@ -71,7 +42,7 @@ async function ensureCategoriesSheetExists(user, oauth2Client) {
     });
 
     const categoriesSheet = data.sheets.find(sheet => 
-      sheet.properties.title === "Categories"
+      sheet.properties.title === APP_CONFIG.SHEETS.CATEGORIES
     );
 
     if (!categoriesSheet) {
@@ -83,7 +54,7 @@ async function ensureCategoriesSheetExists(user, oauth2Client) {
             {
               addSheet: {
                 properties: {
-                  title: "Categories",
+                  title: APP_CONFIG.SHEETS.CATEGORIES,
                 },
               },
             },
@@ -91,16 +62,50 @@ async function ensureCategoriesSheetExists(user, oauth2Client) {
         },
       });
 
-      // Add default categories to the new sheet
-      const defaultCategories = ["Food", "Transport", "Shopping", "Bills", "Other"];
+      // Add header row to Categories sheet
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheet.spreadsheetId,
-        range: "Categories!A1:A5",
+        range: "Categories!A1:A1",
+        valueInputOption: "RAW",
+        requestBody: {
+          values: [["Category Name"]],
+        },
+      });
+
+      // Add default categories to the new sheet (starting from row 2)
+      const defaultCategories = APP_CONFIG.DEFAULT_CATEGORIES;
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: spreadsheet.spreadsheetId,
+        range: "Categories!A2:A6",
         valueInputOption: "RAW",
         requestBody: {
           values: defaultCategories.map(cat => [cat]),
         },
       });
+    }
+
+    // Delete default Sheet1 if it exists (after ensuring Categories sheet exists)
+    const sheet1 = data.sheets.find(sheet => 
+      sheet.properties.title === "Sheet1"
+    );
+
+    if (sheet1) {
+      try {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: spreadsheet.spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                deleteSheet: {
+                  sheetId: sheet1.properties.sheetId,
+                },
+              },
+            ],
+          },
+        });
+      } catch (deleteError) {
+        console.log("Note: Could not delete default Sheet1:", deleteError.message);
+      }
     }
   } catch (error) {
     console.error("Error ensuring Categories sheet exists:", error);
@@ -132,10 +137,11 @@ router.get("/", async (req, res) => {
     const categories = [];
 
     if (data.values) {
-      data.values.forEach((row, index) => {
+      // Skip the first row (header) and process categories starting from index 1
+      data.values.slice(1).forEach((row, index) => {
         if (row[0] && row[0].trim()) {
           categories.push({
-            id: index,
+            id: index + 1, // Adjust ID to account for skipped header
             categoryName: row[0].trim(),
             isDefault: false  // All categories are now editable/deletable
           });
@@ -189,7 +195,8 @@ router.post("/", async (req, res) => {
 
     const existingCategories = [];
     if (data.values) {
-      data.values.forEach(row => {
+      // Skip header row when checking for duplicates
+      data.values.slice(1).forEach(row => {
         if (row[0] && row[0].trim()) {
           existingCategories.push(row[0].trim().toLowerCase());
         }
@@ -246,6 +253,11 @@ router.delete("/:id", async (req, res) => {
 
     if (!data.values || !data.values[rowIndex] || !data.values[rowIndex][0]) {
       return res.status(404).send("Category not found");
+    }
+
+    // Prevent deletion of header row
+    if (rowIndex === 0) {
+      return res.status(400).send("Cannot delete header row");
     }
 
     // Get sheet properties to perform row deletion
@@ -318,11 +330,16 @@ router.put("/:id", async (req, res) => {
       return res.status(404).send("Category not found");
     }
 
-    // Check for duplicates (excluding the current category)
+    // Prevent editing of header row
+    if (rowIndex === 0) {
+      return res.status(400).send("Cannot edit header row");
+    }
+
+    // Check for duplicates (excluding the current category and header row)
     const existingCategories = [];
     if (data.values) {
       data.values.forEach((row, index) => {
-        if (row[0] && row[0].trim() && index !== rowIndex) {
+        if (row[0] && row[0].trim() && index !== rowIndex && index !== 0) {
           existingCategories.push(row[0].trim().toLowerCase());
         }
       });

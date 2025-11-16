@@ -1,21 +1,26 @@
 const express = require("express");
 const session = require("express-session");
 const path = require("path");
-const sequelize = require("./config/database"); // Ensure DB is initialized
+const sequelize = require("./config/database");
+const { errorHandler, requireAuth } = require("./middleware/errorHandler");
+const APP_CONFIG = require("./utils/constants");
 require("dotenv").config();
 
 const app = express();
-app.use(express.json());
 
-// Session middleware
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session middleware with configuration from constants
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "default_secret_key",
+    secret: APP_CONFIG.SESSION.SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      secure: false, // Set to true if using HTTPS
+      maxAge: APP_CONFIG.SESSION.MAX_AGE,
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
     },
   })
@@ -23,30 +28,37 @@ app.use(
 
 // Routes
 app.use("/auth", require("./routes/auth"));
-app.use("/expenses", require("./routes/expenses"));
-app.use("/dashboard", require("./routes/dashboard"));
-app.use("/categories", require("./routes/categories"));
+app.use("/expenses", requireAuth, require("./routes/expenses"));
+app.use("/dashboard", requireAuth, require("./routes/dashboard"));
+app.use("/categories", requireAuth, require("./routes/categories"));
 
 // Root route
-
 app.get("/", (req, res) => {
-  console.log("Session userId:", req.session.userId); // Debugging
   if (req.session.userId) {
-    console.log("Redirecting to dashboard...");
     res.redirect("/dashboard");
   } else {
-    console.log("Serving index.html...");
     res.sendFile(path.join(__dirname, "../client", "index.html"));
   }
 });
 
-
-// Serve static files from the "client" folder
+// Serve static files
 app.use(express.static(path.join(__dirname, "../client")));
 
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
-// Sync DB before starting server
+// Database sync and server start
+const PORT = process.env.PORT || 3000;
+
 sequelize.sync().then(() => {
   console.log("Database synced ✅");
-  app.listen(3000, () => console.log("Server running on http://localhost:3000"));
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    }
+  });
+}).catch(err => {
+  console.error("Failed to sync database:", err);
+  process.exit(1);
 });
