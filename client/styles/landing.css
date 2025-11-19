@@ -7,22 +7,22 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: var(--white);
+  background: #ffffff;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--text-primary);
+  color: #333;
 }
 
 /* Landing page container */
 .container {
   text-align: center;
-  background: var(--white);
+  background: #ffffff;
   padding: 3rem 2rem;
   border-radius: 12px;
-  box-shadow: 0 4px 20px var(--shadow-light);
-  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
   max-width: 500px;
   width: 90%;
   animation: fadeInUp 0.8s ease;

@@ -8,6 +8,9 @@ require("dotenv").config();
 
 const app = express();
 
+// Important: trust proxy so secure cookies work behind Heroku's load balancer
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

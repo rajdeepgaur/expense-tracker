@@ -1,14 +1,15 @@
 {
   "name": "expense-tracker",
   "version": "1.0.0",
-  "description": "A comprehensive expense tracking application with Google Sheets integration for automated expense management and categorization.",
+  "description": "Personal expense tracking application with Google Sheets integration",
   "main": "server/index.js",
   "scripts": {
-    "start": "NODE_ENV=production node server/index.js",
+    "start": "node server/index.js",
     "dev": "nodemon server/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "validate": "node -e \"require('./server/config/environment').validateEnvironment()\"",
-    "health": "curl -f http://localhost:3000/health || exit 1"
+    "build": "echo 'No build step required'"
+  },
+   "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [],
   "author": "",
@@ -23,5 +24,8 @@
     "googleapis": "^156.0.0",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7"
+  },
+   "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }
