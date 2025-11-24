@@ -6,20 +6,6 @@ const { errorHandler, requireAuth } = require("./middleware/errorHandler");
 const APP_CONFIG = require("./utils/constants");
 require("dotenv").config();
 
-const requiredEnv = [
-  'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET',
-  'GOOGLE_REDIRECT_URI',
-  'SESSION_SECRET'
-];
-
-const missing = requiredEnv.filter(k => !process.env[k]);
-if (missing.length) {
-  console.error('Missing required env vars:', missing.join(', '));
-  // In production fail fast to surface the problem
-  if (process.env.NODE_ENV === 'production') process.exit(1);
-}
-
 const app = express();
 
 // Important: trust proxy so secure cookies work behind Heroku's load balancer
