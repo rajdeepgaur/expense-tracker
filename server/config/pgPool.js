@@ -18,6 +18,16 @@ pool.on("connect", () => {
 
 pool.on("error", (err) => {
   console.error("Unexpected error on PostgreSQL pool:", err);
+  // Pool will automatically attempt to reconnect
 });
+
+// Health check to detect stale connections
+setInterval(() => {
+  pool.query('SELECT 1', (err, res) => {
+    if (err) {
+      console.error("Database health check failed:", err.message);
+    }
+  });
+}, 30000); // Check every 30 seconds
 
 module.exports = pool;

@@ -77,8 +77,12 @@ router.get("/google/callback", async (req, res) => {
     // Regenerate session and set userId
     req.session.regenerate((err) => {
       if (err) {
-        console.error("[Callback] Session error:", err);
-        return res.status(500).send("Failed to create session");
+        console.error("[Callback] Session error:", err.message);
+        // Better error feedback
+        if (err.message && err.message.includes('connection')) {
+          return res.status(503).send("Database temporarily unavailable. Please try again in a moment.");
+        }
+        return res.status(500).send("Failed to create session. Please try logging in again.");
       }
       req.session.userId = user.id;
       console.log("[Callback] User ID set in session:", req.session.userId);
