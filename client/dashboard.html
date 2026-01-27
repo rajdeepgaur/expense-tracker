@@ -119,9 +119,7 @@
                 <div class="form-group" style="margin: 0;">
                   <label class="form-label">Year:</label>
                   <select id="view-year" class="form-select" style="width: auto;">
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                    <option value="2025">2025</option>
+                    <!-- Populated dynamically by JavaScript -->
                   </select>
                 </div>
                 <div class="form-group" style="margin: 0;">
@@ -514,8 +512,16 @@
           return;
         }
 
+        // Show newest expenses first
+        const sortedExpenses = [...data].sort((a, b) => {
+          const timeA = new Date(a[0]).getTime();
+          const timeB = new Date(b[0]).getTime();
+          if (isNaN(timeA) || isNaN(timeB)) return 0;
+          return timeB - timeA;
+        });
+
         // Populate table with expenses
-        data.forEach((expense) => {
+        sortedExpenses.forEach((expense) => {
           const row = document.createElement("tr");
           const amount = parseFloat(expense[1] || 0);
           row.innerHTML = `
@@ -669,7 +675,18 @@
       const monthSelect = document.getElementById("view-month");
       const dateInput = document.getElementById("date");
       
-      if (yearSelect) yearSelect.value = currentYear;
+      // Populate year dropdown dynamically (current year and 2 years back)
+      if (yearSelect) {
+        yearSelect.innerHTML = '';
+        for (let year = currentYear; year >= currentYear - 2; year--) {
+          const option = document.createElement('option');
+          option.value = year;
+          option.textContent = year;
+          if (year === currentYear) option.selected = true;
+          yearSelect.appendChild(option);
+        }
+      }
+      
       if (monthSelect) monthSelect.value = currentMonth;
       if (dateInput) dateInput.value = now.toISOString().split('T')[0];
       

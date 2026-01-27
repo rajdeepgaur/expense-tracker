@@ -36,3 +36,11 @@ credentials.json
 
 # Database files
 *.sqlite
+
+# Development documentation and utility files
+OPTIMIZATION_SUMMARY.md
+SESSION_SETUP.md
+SUPABASE_SETUP.md
+check_supabase.js
+*.sql
+!schema.sql
