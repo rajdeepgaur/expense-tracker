@@ -1,19 +1,17 @@
 const express = require("express");
 const { google } = require("googleapis");
-const User = require("../models/user");
-const UserSpreadsheet = require("../models/userSpreadsheet");
+const { getUserById } = require("../utils/userService");
+const { findSpreadsheetByUserAndYear, createSpreadsheet } = require("../utils/spreadsheetService");
 const { ensureValidAccessToken } = require("../utils/oauth");
 const APP_CONFIG = require("../utils/constants");
 const router = express.Router();
 
 // Ensure the Categories sheet exists in the current year's spreadsheet
-async function ensureCategoriesSheetExists(user, oauth2Client) {
+async function ensureCategoriesSheetExists(userId, oauth2Client) {
   const currentYear = new Date().getFullYear();
   
   // Find or create the current year's spreadsheet
-  let spreadsheet = await UserSpreadsheet.findOne({ 
-    where: { userId: user.id, year: currentYear } 
-  });
+  let spreadsheet = await findSpreadsheetByUserAndYear(userId, currentYear);
 
   if (!spreadsheet) {
     // Create spreadsheet if it doesn't exist
@@ -26,11 +24,7 @@ async function ensureCategoriesSheetExists(user, oauth2Client) {
       fields: "id",
     });
 
-    spreadsheet = await UserSpreadsheet.create({
-      userId: user.id,
-      year: currentYear,
-      spreadsheetId: data.id,
-    });
+    spreadsheet = await createSpreadsheet(userId, currentYear, data.id);
   }
 
   // Ensure Categories sheet exists (for both new and existing spreadsheets)
@@ -118,14 +112,14 @@ async function ensureCategoriesSheetExists(user, oauth2Client) {
 // Get all categories for a user from Google Sheets
 router.get("/", async (req, res) => {
   try {
-    const user = await User.findByPk(req.session.userId);
+    const user = await getUserById(req.session.userId);
 
     if (!user) {
       return res.status(401).send("User not authenticated");
     }
 
-    const oauth2Client = await ensureValidAccessToken(user);
-    const spreadsheetId = await ensureCategoriesSheetExists(user, oauth2Client);
+    const oauth2Client = await ensureValidAccessToken(user.id);
+    const spreadsheetId = await ensureCategoriesSheetExists(user.id, oauth2Client);
 
     // Read categories from the Categories sheet
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
@@ -177,14 +171,14 @@ router.post("/", async (req, res) => {
       return res.status(400).send("Category name is required");
     }
 
-    const user = await User.findByPk(req.session.userId);
+    const user = await getUserById(req.session.userId);
 
     if (!user) {
       return res.status(401).send("User not authenticated");
     }
 
-    const oauth2Client = await ensureValidAccessToken(user);
-    const spreadsheetId = await ensureCategoriesSheetExists(user, oauth2Client);
+    const oauth2Client = await ensureValidAccessToken(user.id);
+    const spreadsheetId = await ensureCategoriesSheetExists(user.id, oauth2Client);
 
     // Read existing categories to check for duplicates
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
@@ -235,14 +229,14 @@ router.delete("/:id", async (req, res) => {
     const { id } = req.params;
     const rowIndex = parseInt(id);
 
-    const user = await User.findByPk(req.session.userId);
+    const user = await getUserById(req.session.userId);
 
     if (!user) {
       return res.status(401).send("User not authenticated");
     }
 
-    const oauth2Client = await ensureValidAccessToken(user);
-    const spreadsheetId = await ensureCategoriesSheetExists(user, oauth2Client);
+    const oauth2Client = await ensureValidAccessToken(user.id);
+    const spreadsheetId = await ensureCategoriesSheetExists(user.id, oauth2Client);
 
     // Read existing categories
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
@@ -310,14 +304,14 @@ router.put("/:id", async (req, res) => {
       return res.status(400).send("Category name is required");
     }
 
-    const user = await User.findByPk(req.session.userId);
+    const user = await getUserById(req.session.userId);
 
     if (!user) {
       return res.status(401).send("User not authenticated");
     }
 
-    const oauth2Client = await ensureValidAccessToken(user);
-    const spreadsheetId = await ensureCategoriesSheetExists(user, oauth2Client);
+    const oauth2Client = await ensureValidAccessToken(user.id);
+    const spreadsheetId = await ensureCategoriesSheetExists(user.id, oauth2Client);
 
     // Read existing categories to check for duplicates and validate row exists
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });

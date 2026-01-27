@@ -1,23 +1,32 @@
+// Load environment variables FIRST, before any other imports
+require("dotenv").config({ path: require("path").join(__dirname, ".env") });
+
 const express = require("express");
 const session = require("express-session");
+const pgSession = require("connect-pg-simple")(session);
 const path = require("path");
-const sequelize = require("./config/database");
+const pool = require("./config/pgPool");
 const { errorHandler, requireAuth } = require("./middleware/errorHandler");
 const APP_CONFIG = require("./utils/constants");
-require("dotenv").config();
 
 const app = express();
 
-// Important: trust proxy so secure cookies work behind Heroku's load balancer
+// Important: trust proxy so secure cookies work behind load balancers
 app.set('trust proxy', 1);
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware with configuration from constants
+// PostgreSQL session store for production
 app.use(
   session({
+    store: new pgSession({
+      pool: pool,
+      tableName: "session",
+      createTableIfMissing: true,
+      pruneSessionInterval: 60 * 15, // Clean expired sessions every 15 minutes
+    }),
     secret: APP_CONFIG.SESSION.SECRET,
     resave: false,
     saveUninitialized: false,
@@ -25,6 +34,7 @@ app.use(
       maxAge: APP_CONFIG.SESSION.MAX_AGE,
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
+      sameSite: 'lax',
     },
   })
 );
@@ -32,7 +42,7 @@ app.use(
 // Routes
 app.use("/auth", require("./routes/auth"));
 app.use("/expenses", requireAuth, require("./routes/expenses"));
-app.use("/dashboard", requireAuth, require("./routes/dashboard"));
+app.use("/dashboard", require("./routes/dashboard"));
 app.use("/categories", requireAuth, require("./routes/categories"));
 
 // Root route
@@ -50,18 +60,13 @@ app.use(express.static(path.join(__dirname, "../client")));
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
-// Database sync and server start
+// Server start
 const PORT = process.env.PORT || 3000;
 
-sequelize.sync().then(() => {
-  console.log("Database synced ✅");
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    }
-  });
-}).catch(err => {
-  console.error("Failed to sync database:", err);
-  process.exit(1);
+console.log("Database synced ✅");
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  }
 });
